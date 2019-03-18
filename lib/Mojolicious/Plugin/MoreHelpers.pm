@@ -8,7 +8,7 @@ our $VERSION = "1.01";
 $VERSION = eval $VERSION;
 
 sub register {
-  my ($self, $app) = @_;
+  my ($self, $app, $conf) = @_;
 
   #
   # Helpers
@@ -102,7 +102,7 @@ sub register {
       exception       => sub { $c->reply->exception(@_)       }
     );
 
-    $dispatch{ $status ||= 'exception' }
+    $dispatch{$status ||= 'exception'}
       ? $dispatch{ $status }->($message)
       : $dispatch{exception}->("Unknown catch status '$status'");
   });
@@ -124,7 +124,6 @@ sub register {
     $h->header("X-Message" => $c->stash('message'));
 
     return unless $c->stash('cors_strict');
-
     $h->append("Access-Control-Expose-Headers" => "X-Message");
   });
 
@@ -151,7 +150,6 @@ sub register {
     }
 
     return unless $c->stash('cors_strict');
-
     $h->append("Access-Control-Expose-Headers" => join ", ", @headers);
   });
 
