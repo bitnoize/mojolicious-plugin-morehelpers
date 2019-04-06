@@ -16,5 +16,6 @@ WriteMakefile(
     'Parse::HTTP::UserAgent'  => '0.42',
     'Mojolicious'             => '8.12'
   },
+  EXE_FILES => ["script/curl-api.sh"],
   test => { TESTS => 't/*.t' }
 );

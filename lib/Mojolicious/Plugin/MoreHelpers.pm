@@ -103,7 +103,7 @@ sub register {
     );
 
     $dispatch{$status ||= 'exception'}
-      ? $dispatch{ $status }->($message)
+      ? $dispatch{$status}->($message)
       : $dispatch{exception}->("Unknown catch status '$status'");
   });
 
