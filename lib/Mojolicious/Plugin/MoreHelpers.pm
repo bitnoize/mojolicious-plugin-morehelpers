@@ -153,6 +153,10 @@ sub register {
     $h->append("Access-Control-Expose-Headers" => join ", ", @headers);
   });
 
+  $app->helper(useragent_strict => sub {
+    substr shift->req->headers->user_agent || "Uknown", 0, 1024
+  });
+
   #
   # Validators
   #
