@@ -4,7 +4,7 @@ use Mojo::Base "Mojolicious::Plugin";
 use Data::Validate::IP;
 use Parse::HTTP::UserAgent;
 
-our $VERSION = "1.01";
+our $VERSION = "1.02_001";
 $VERSION = eval $VERSION;
 
 sub register {
@@ -21,7 +21,7 @@ sub register {
     my ($c, $ua) = @_;
 
     $ua ||= $c->req->headers->user_agent;
-    Parse::HTTP::UserAgent->new($ua, { extended => 0 });
+    Parse::HTTP::UserAgent->new($ua, { extended => 1 });
   });
 
   $app->helper('reply.bad_request' => sub {
