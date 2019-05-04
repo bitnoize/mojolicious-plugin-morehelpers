@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Dmitry Krutikov <mitya@whteam.net>
 Build-Depends: debhelper (>= 11), perl,
   libdata-validate-ip-perl (>= 0.27),
-  libparse-http-useragent-perl (>= 0.42),
+  libhttp-browserdetect-perl (>= 3.14),
   libmojolicious-perl (>= 8.12)
 Standards-Version: 4.3.0
 Homepage: https://bitbucket.org/whoerdev/mojolicious-plugin-morehelpers
@@ -13,7 +13,7 @@ Package: libmojolicious-plugin-morehelpers-perl
 Architecture: all
 Depends: ${misc:Depends}, ${perl:Depends},
   libdata-validate-ip-perl (>= 0.27),
-  libparse-http-useragent-perl (>= 0.42),
+  libhttp-browserdetect-perl (>= 3.14),
   libmojolicious-perl (>= 8.12)
 Description: More REST-like helpers for Mojolicious
 

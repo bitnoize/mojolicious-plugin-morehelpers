@@ -1,10 +1,11 @@
 package Mojolicious::Plugin::MoreHelpers;
 use Mojo::Base "Mojolicious::Plugin";
 
+use Scalar::Util qw/looks_like_number/;
 use Data::Validate::IP;
-use Parse::HTTP::UserAgent;
+use HTTP::BrowserDetect;
 
-our $VERSION = "1.02_001";
+our $VERSION = "1.02_006";
 $VERSION = eval $VERSION;
 
 sub register {
@@ -18,10 +19,12 @@ sub register {
   $app->helper(is_ipv6 => sub { is_ipv6 $_[1] });
 
   $app->helper(parse_useragent => sub {
-    my ($c, $ua) = @_;
+    my ($c, $str) = @_;
 
-    $ua ||= $c->req->headers->user_agent;
-    Parse::HTTP::UserAgent->new($ua, { extended => 1 });
+    $str ||= $c->req->headers->user_agent;
+    my $ua = HTTP::BrowserDetect->new($str);
+
+    return $ua;
   });
 
   $app->helper('reply.bad_request' => sub {
@@ -164,7 +167,7 @@ sub register {
   $app->validator->add_check(range => sub {
     my ($validate, $name, $value, $min, $max) = @_;
 
-    return 1 unless $value =~ /^\d+$/ and $value eq $value + 0;
+    return 1 unless looks_like_number $value;
     return int $value < $min || int $value > $max ? 1 : 0;
   });
 

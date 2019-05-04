@@ -12,9 +12,9 @@ WriteMakefile(
   LICENSE      => 'artistic_2',
   AUTHOR        => "Dmitry Krutikov <mitya\@whteam.net>",
   PREREQ_PM     => {
-    'Data::Validate::IP'      => '0.27',
-    'Parse::HTTP::UserAgent'  => '0.42',
-    'Mojolicious'             => '8.12'
+    "Data::Validate::IP" => '0.27',
+    'HTTP::BrowserDetect' => '3.14',
+    "Mojolicious" => '8.12'
   },
   test => { TESTS => 't/*.t' }
 );
