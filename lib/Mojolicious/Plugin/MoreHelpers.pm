@@ -118,6 +118,15 @@ sub register {
     $c->validation->input($json);
   });
 
+  $app->helper(header_first => sub {
+    my ($c, @names) = @_;
+
+    for my $name (@names) {
+      my @values = split /,\s*/, $c->req->headers->header($name) || "";
+      return $values[0] if $values[0];
+    }
+  });
+
   $app->helper(message_header => sub {
     my ($c, $message) = @_;
 
