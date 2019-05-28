@@ -5,7 +5,7 @@ use Scalar::Util qw/looks_like_number/;
 use Data::Validate::IP;
 use HTTP::BrowserDetect;
 
-our $VERSION = "1.02_006";
+our $VERSION = "1.02_007";
 $VERSION = eval $VERSION;
 
 sub register {
@@ -29,66 +29,67 @@ sub register {
 
   $app->helper('reply.bad_request' => sub {
     my ($c, $message) = @_;
+    $message ||= "error.validation_failed";
 
-    $c->message_header($message ||= "error.validation_failed");
-    $c->render(status => 400) && undef;
+    $c->message_header($message);
+    $c->render(status => 400);
   });
 
   $app->helper('reply.unauthorized' => sub {
     my ($c, $message) = @_;
+    $message ||= "error.authorization_failed";
 
-    $c->message_header($message ||= "error.authorization_failed");
-    $c->render(status => 401) && undef;
+    $c->message_header($message);
+    $c->render(status => 401);
   });
 
   $app->helper('reply.forbidden' => sub {
     my ($c, $message) = @_;
+    $message ||= "error.access_denied";
 
-    $c->message_header($message ||= "error.access_denied");
-    $c->render(status => 403) && undef;
+    $c->message_header($message);
+    $c->render(status => 403);
   });
 
 # $app->helper('reply.not_found' => sub {
 #   my ($c, $message) = @_;
+#   $message ||= "error.resource_not_found";
 #
-#   $c->message_header($message ||= "error.resource_not_found");
-#   $c->render(status => 404) && undef;
+#   $c->message_header($message);
+#   $c->render(status => 404);
 # });
 
   $app->helper('reply.not_acceptable' => sub {
     my ($c, $message) = @_;
+    $message ||= "error.not_acceptable";
 
-    $c->message_header($message ||= "error.not_acceptable");
-    $c->render(status => 406) && undef;
+    $c->message_header($message);
+    $c->render(status => 406);
   });
 
   $app->helper('reply.unprocessable' => sub {
     my ($c, $message) = @_;
+    $message ||= "error.unprocessable";
 
-    $c->message_header($message ||= "error.unprocessable");
-    $c->render(status => 422) && undef;
+    $c->message_header($message);
+    $c->render(status => 422);
   });
 
   $app->helper( 'reply.locked' => sub {
     my ($c, $message) = @_;
+    $message ||= "error.resource_locked";
 
-    $c->message_header($message ||= "error.resource_locked");
-    $c->render(status => 423) && undef;
+    $c->message_header($message);
+    $c->render(status => 423);
   });
 
   $app->helper('reply.rate_limit' => sub {
     my ($c, $message) = @_;
+    $message ||= "error.too_many_requests";
 
-    $c->message_header($message ||= "error.too_many_requests");
-    $c->render(status => 429) && undef;
+    $c->message_header($message);
+    $c->render(status => 429);
   });
-
-# $app->helper('reply.exception' => sub {
-#   my ($c, $message) = @_;
-#
-#   $c->app->log->error($message) if $message;
-#   $c->render(status => 500) && undef;
-# });
 
   $app->helper('reply.catch' => sub {
     my ($c, $message, $status) = @_;
@@ -135,8 +136,10 @@ sub register {
     $c->stash(message => $message || "error.unknown");
     $h->header("X-Message" => $c->stash('message'));
 
-    return unless $c->stash('cors_strict');
-    $h->append("Access-Control-Expose-Headers" => "X-Message");
+    $h->append("Access-Control-Expose-Headers" => "X-Message")
+      if $c->stash('cors_strict');
+
+    return $c;
   });
 
   $app->helper(pager_headers => sub {
@@ -161,8 +164,10 @@ sub register {
       $h->header($header => $value);
     }
 
-    return unless $c->stash('cors_strict');
-    $h->append("Access-Control-Expose-Headers" => join ", ", @headers);
+    $h->append("Access-Control-Expose-Headers" => join ", ", @headers)
+      if $c->stash('cors_strict');
+
+    return $c;
   });
 
   $app->helper(useragent_strict => sub {
