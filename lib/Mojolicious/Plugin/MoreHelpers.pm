@@ -2,10 +2,8 @@ package Mojolicious::Plugin::MoreHelpers;
 use Mojo::Base "Mojolicious::Plugin";
 
 use Scalar::Util qw/looks_like_number/;
-use Data::Validate::IP;
-use HTTP::BrowserDetect;
 
-our $VERSION = "1.02_007";
+our $VERSION = "1.02_009";
 $VERSION = eval $VERSION;
 
 sub register {
@@ -14,18 +12,6 @@ sub register {
   #
   # Helpers
   #
-
-  $app->helper(is_ipv4 => sub { is_ipv4 $_[1] });
-  $app->helper(is_ipv6 => sub { is_ipv6 $_[1] });
-
-  $app->helper(parse_useragent => sub {
-    my ($c, $str) = @_;
-
-    $str ||= $c->req->headers->user_agent;
-    my $ua = HTTP::BrowserDetect->new($str);
-
-    return $ua;
-  });
 
   $app->helper('reply.bad_request' => sub {
     my ($c, $message) = @_;
@@ -152,7 +138,7 @@ sub register {
       X-Pager-Page
       X-Pager-Start
       X-Pager-Limit
-      X-Pager-Items
+      X-Pager-Size
       X-Pager-First
       X-Pager-Last
     /;
