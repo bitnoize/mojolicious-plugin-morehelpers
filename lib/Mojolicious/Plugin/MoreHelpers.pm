@@ -3,7 +3,7 @@ use Mojo::Base "Mojolicious::Plugin";
 
 use Scalar::Util qw/looks_like_number/;
 
-our $VERSION = "1.02_009";
+our $VERSION = "1.02_010";
 $VERSION = eval $VERSION;
 
 sub register {
@@ -169,6 +169,12 @@ sub register {
 
     return 1 unless looks_like_number $value;
     return int $value < $min || int $value > $max ? 1 : 0;
+  });
+
+  $app->validator->add_check(boolean => sub {
+    my ($validate, $name, $value) = @_;
+
+    return ($value =~ /^(0|1)$/) ? 0 : 1;
   });
 
   #
