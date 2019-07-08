@@ -3,7 +3,7 @@ use Mojo::Base "Mojolicious::Plugin";
 
 use Scalar::Util qw/looks_like_number/;
 
-our $VERSION = "1.02_010";
+our $VERSION = "1.02_011";
 $VERSION = eval $VERSION;
 
 sub register {
@@ -134,9 +134,9 @@ sub register {
     my $h = $c->res->headers;
 
     my @headers = qw/
+      X-Pager-Start
       X-Pager-Order
       X-Pager-Page
-      X-Pager-Start
       X-Pager-Limit
       X-Pager-Size
       X-Pager-First
@@ -172,9 +172,7 @@ sub register {
   });
 
   $app->validator->add_check(boolean => sub {
-    my ($validate, $name, $value) = @_;
-
-    return ($value =~ /^(0|1)$/) ? 0 : 1;
+    shift->in(0, 1)->has_error(shift)
   });
 
   #
