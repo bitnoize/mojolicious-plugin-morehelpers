@@ -3,7 +3,7 @@ use Mojo::Base "Mojolicious::Plugin";
 
 use Scalar::Util qw/looks_like_number/;
 
-our $VERSION = "1.02_011";
+our $VERSION = "1.02_012";
 $VERSION = eval $VERSION;
 
 sub register {
@@ -37,22 +37,6 @@ sub register {
     $c->render(status => 403);
   });
 
-# $app->helper('reply.not_found' => sub {
-#   my ($c, $message) = @_;
-#   $message ||= "error.resource_not_found";
-#
-#   $c->message_header($message);
-#   $c->render(status => 404);
-# });
-
-  $app->helper('reply.not_acceptable' => sub {
-    my ($c, $message) = @_;
-    $message ||= "error.not_acceptable";
-
-    $c->message_header($message);
-    $c->render(status => 406);
-  });
-
   $app->helper('reply.unprocessable' => sub {
     my ($c, $message) = @_;
     $message ||= "error.unprocessable";
@@ -63,7 +47,7 @@ sub register {
 
   $app->helper( 'reply.locked' => sub {
     my ($c, $message) = @_;
-    $message ||= "error.resource_locked";
+    $message ||= "error.temporary_locked";
 
     $c->message_header($message);
     $c->render(status => 423);
@@ -81,15 +65,14 @@ sub register {
     my ($c, $message, $status) = @_;
 
     my %dispatch = (
-      bad_request     => sub { $c->reply->bad_request(@_)     },
-      unauthorized    => sub { $c->reply->unauthorized(@_)    },
-      forbidden       => sub { $c->reply->forbidden(@_)       },
-      not_found       => sub { $c->reply->not_found(@_)       },
-      not_acceptable  => sub { $c->reply->not_acceptable(@_)  },
-      unprocessable   => sub { $c->reply->unprocessable(@_)   },
-      locked          => sub { $c->reply->locked(@_)          },
-      rate_limit      => sub { $c->reply->rate_limit(@_)      },
-      exception       => sub { $c->reply->exception(@_)       }
+      bad_request     => sub { $c->reply->bad_request(@_)   },
+      unauthorized    => sub { $c->reply->unauthorized(@_)  },
+      forbidden       => sub { $c->reply->forbidden(@_)     },
+      not_found       => sub { $c->reply->not_found(@_)     },
+      unprocessable   => sub { $c->reply->unprocessable(@_) },
+      locked          => sub { $c->reply->locked(@_)        },
+      rate_limit      => sub { $c->reply->rate_limit(@_)    },
+      exception       => sub { $c->reply->exception(@_)     }
     );
 
     $dispatch{$status ||= 'exception'}
@@ -100,9 +83,17 @@ sub register {
   $app->helper(validation_json => sub {
     my ($c) = @_;
 
+    my $v = $c->validation;
+
     my $json = $c->req->json || {};
     $json = {} unless ref $json eq 'HASH';
-    $c->validation->input($json);
+
+    for my $key (keys %$json) {
+      next if ref $json->{$key};
+      $v->input->{$key} = $json->{$key};
+    }
+
+    return $v;
   });
 
   $app->helper(header_first => sub {
