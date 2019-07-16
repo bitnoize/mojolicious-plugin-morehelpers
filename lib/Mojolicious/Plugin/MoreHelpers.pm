@@ -3,7 +3,7 @@ use Mojo::Base "Mojolicious::Plugin";
 
 use Scalar::Util qw/looks_like_number/;
 
-our $VERSION = "1.02_012";
+our $VERSION = "1.02_013";
 $VERSION = eval $VERSION;
 
 sub register {
@@ -65,14 +65,14 @@ sub register {
     my ($c, $message, $status) = @_;
 
     my %dispatch = (
-      bad_request     => sub { $c->reply->bad_request(@_)   },
-      unauthorized    => sub { $c->reply->unauthorized(@_)  },
-      forbidden       => sub { $c->reply->forbidden(@_)     },
-      not_found       => sub { $c->reply->not_found(@_)     },
-      unprocessable   => sub { $c->reply->unprocessable(@_) },
-      locked          => sub { $c->reply->locked(@_)        },
-      rate_limit      => sub { $c->reply->rate_limit(@_)    },
-      exception       => sub { $c->reply->exception(@_)     }
+      bad_request   => sub { $c->reply->bad_request(@_)   },
+      unauthorized  => sub { $c->reply->unauthorized(@_)  },
+      forbidden     => sub { $c->reply->forbidden(@_)     },
+      not_found     => sub { $c->reply->not_found(@_)     },
+      unprocessable => sub { $c->reply->unprocessable(@_) },
+      locked        => sub { $c->reply->locked(@_)        },
+      rate_limit    => sub { $c->reply->rate_limit(@_)    },
+      exception     => sub { $c->reply->exception(@_)     }
     );
 
     $dispatch{$status ||= 'exception'}
@@ -88,10 +88,8 @@ sub register {
     my $json = $c->req->json || {};
     $json = {} unless ref $json eq 'HASH';
 
-    for my $key (keys %$json) {
-      next if ref $json->{$key};
-      $v->input->{$key} = $json->{$key};
-    }
+    map { $v->input->{$_} = $json->{$_} }
+      grep { not ref $_ or ref $_ eq 'ARRAY' } keys %$json;
 
     return $v;
   });
