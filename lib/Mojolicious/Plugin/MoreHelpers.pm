@@ -3,7 +3,7 @@ use Mojo::Base "Mojolicious::Plugin";
 
 use Scalar::Util qw/looks_like_number/;
 
-our $VERSION = "1.02_013";
+our $VERSION = "1.02_014";
 $VERSION = eval $VERSION;
 
 sub register {
@@ -88,8 +88,18 @@ sub register {
     my $json = $c->req->json || {};
     $json = {} unless ref $json eq 'HASH';
 
-    map { $v->input->{$_} = $json->{$_} }
-      grep { not ref $_ or ref $_ eq 'ARRAY' } keys %$json;
+    for my $key (keys %$json) {
+      my $success = 0;
+
+      unless (ref $json->{$key}) { $success = 1 }
+
+      elsif (ref $json->{$key} eq 'ARRAY') {
+        # Success only if there are no any refs in array
+        $success = 1 unless grep { ref $_ } @{$json->{$key}};
+      }
+
+      $v->input->{$key} = $json->{$key} if $success;
+    }
 
     return $v;
   });
