@@ -4,7 +4,7 @@ use Mojo::Base "Mojolicious::Plugin";
 use Scalar::Util qw/looks_like_number/;
 
 ## no critic
-our $VERSION = "1.03_002";
+our $VERSION = "1.03_003";
 $VERSION = eval $VERSION;
 ## use critic
 
