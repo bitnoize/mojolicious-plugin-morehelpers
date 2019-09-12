@@ -3,8 +3,10 @@ use Mojo::Base "Mojolicious::Plugin";
 
 use Scalar::Util qw/looks_like_number/;
 
-our $VERSION = "1.02_014";
+## no critic
+our $VERSION = "1.03_002";
 $VERSION = eval $VERSION;
+## use critic
 
 sub register {
   my ($self, $app, $conf) = @_;
@@ -39,7 +41,7 @@ sub register {
 
   $app->helper('reply.unprocessable' => sub {
     my ($c, $message) = @_;
-    $message ||= "error.unprocessable";
+    $message ||= "error.unprocessable_entity";
 
     $c->message_header($message);
     $c->render(status => 422);
@@ -122,34 +124,6 @@ sub register {
     $h->header("X-Message" => $c->stash('message'));
 
     $h->append("Access-Control-Expose-Headers" => "X-Message")
-      if $c->stash('cors_strict');
-
-    return $c;
-  });
-
-  $app->helper(pager_headers => sub {
-    my ($c, @values) = @_;
-
-    my $h = $c->res->headers;
-
-    my @headers = qw/
-      X-Pager-Start
-      X-Pager-Order
-      X-Pager-Page
-      X-Pager-Limit
-      X-Pager-Size
-      X-Pager-First
-      X-Pager-Last
-    /;
-
-    for my $header (@headers) {
-      my $value = shift @values;
-      last unless defined $value;
-
-      $h->header($header => $value);
-    }
-
-    $h->append("Access-Control-Expose-Headers" => join ", ", @headers)
       if $c->stash('cors_strict');
 
     return $c;
