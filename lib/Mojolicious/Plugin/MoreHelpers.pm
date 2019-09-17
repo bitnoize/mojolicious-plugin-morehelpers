@@ -4,7 +4,7 @@ use Mojo::Base "Mojolicious::Plugin";
 use Scalar::Util qw/looks_like_number/;
 
 ## no critic
-our $VERSION = "1.03_003";
+our $VERSION = "1.03_004";
 $VERSION = eval $VERSION;
 ## use critic
 
@@ -74,7 +74,7 @@ sub register {
       unprocessable => sub { $c->reply->unprocessable(@_) },
       locked        => sub { $c->reply->locked(@_)        },
       rate_limit    => sub { $c->reply->rate_limit(@_)    },
-      exception     => sub { $c->reply->exception(@_)     }
+      exception     => sub { $c->reply->exception(@_)     },
     );
 
     $dispatch{$status ||= 'exception'}
@@ -156,7 +156,7 @@ sub register {
     my $time  = sprintf "%-10.10s", shift;
     my $level = sprintf "%-5.5s", shift;
 
-    return "$time [$level] " . join("\n", @_, "");
+    return sprintf "$time [$level] %s", join "\n", @_, "";
   });
 }
 
