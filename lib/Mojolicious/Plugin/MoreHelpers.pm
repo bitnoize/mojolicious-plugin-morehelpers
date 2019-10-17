@@ -4,7 +4,7 @@ use Mojo::Base "Mojolicious::Plugin";
 use Scalar::Util qw/looks_like_number/;
 
 ## no critic
-our $VERSION = "1.03_004";
+our $VERSION = "1.03_005";
 $VERSION = eval $VERSION;
 ## use critic
 
@@ -129,8 +129,8 @@ sub register {
     return $c;
   });
 
-  $app->helper(useragent_strict => sub {
-    substr shift->req->headers->user_agent || "Uknown", 0, 1024
+  $app->helper(useragent_string => sub {
+    substr shift->req->headers->user_agent || "unknown", 0, 1024
   });
 
   #
