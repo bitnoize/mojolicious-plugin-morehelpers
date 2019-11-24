@@ -4,7 +4,7 @@ use Mojo::Base "Mojolicious::Plugin";
 use Scalar::Util qw/looks_like_number/;
 
 ## no critic
-our $VERSION = "1.03_005";
+our $VERSION = "1.05_001";
 $VERSION = eval $VERSION;
 ## use critic
 
@@ -17,56 +17,50 @@ sub register {
 
   $app->helper('reply.bad_request' => sub {
     my ($c, $message) = @_;
-    $message ||= "error.validation_failed";
 
-    $c->message_header($message);
-    $c->render(status => 400);
+    $message ||= "error.validation_failed";
+    $c->message_reply($message)->render(status => 400);
   });
 
   $app->helper('reply.unauthorized' => sub {
     my ($c, $message) = @_;
-    $message ||= "error.authorization_failed";
 
-    $c->message_header($message);
-    $c->render(status => 401);
+    $message ||= "error.authorization_failed";
+    $c->message_reply($message)->render(status => 401);
   });
 
   $app->helper('reply.forbidden' => sub {
     my ($c, $message) = @_;
-    $message ||= "error.access_denied";
 
-    $c->message_header($message);
-    $c->render(status => 403);
+    $message ||= "error.access_denied";
+    $c->message_reply($message)->render(status => 403);
   });
 
   $app->helper('reply.unprocessable' => sub {
     my ($c, $message) = @_;
-    $message ||= "error.unprocessable_entity";
 
-    $c->message_header($message);
-    $c->render(status => 422);
+    $message ||= "error.unprocessable_entity";
+    $c->message_reply($message)->render(status => 422);
   });
 
-  $app->helper( 'reply.locked' => sub {
+  $app->helper('reply.locked' => sub {
     my ($c, $message) = @_;
-    $message ||= "error.temporary_locked";
 
-    $c->message_header($message);
-    $c->render(status => 423);
+    $message ||= "error.temporary_locked";
+    $c->message_reply($message)->render(status => 423);
   });
 
   $app->helper('reply.rate_limit' => sub {
     my ($c, $message) = @_;
-    $message ||= "error.too_many_requests";
 
-    $c->message_header($message);
-    $c->render(status => 429);
+    $message ||= "error.too_many_requests";
+    $c->message_reply($message)->render(status => 429);
   });
 
   $app->helper('reply.catch' => sub {
     my ($c, $message, $status) = @_;
 
-    my %dispatch = (
+    my %hash = (
       bad_request   => sub { $c->reply->bad_request(@_)   },
       unauthorized  => sub { $c->reply->unauthorized(@_)  },
       forbidden     => sub { $c->reply->forbidden(@_)     },
@@ -74,12 +68,12 @@ sub register {
       unprocessable => sub { $c->reply->unprocessable(@_) },
       locked        => sub { $c->reply->locked(@_)        },
       rate_limit    => sub { $c->reply->rate_limit(@_)    },
-      exception     => sub { $c->reply->exception(@_)     },
+      exception     => sub { $c->reply->exception(@_)     }
     );
 
-    $dispatch{$status ||= 'exception'}
-      ? $dispatch{$status}->($message)
-      : $dispatch{exception}->("Unknown catch status '$status'");
+    $hash{$status ||= 'exception'}
+      ? $hash{$status}->($message)
+      : $hash{exception}->("Wrong catch status '$status'");
   });
 
   $app->helper(validation_json => sub {
@@ -115,16 +109,15 @@ sub register {
     }
   });
 
-  $app->helper(message_header => sub {
+  $app->helper(message_reply => sub {
     my ($c, $message) = @_;
 
     my $h = $c->res->headers;
 
-    $c->stash(message => $message || "error.unknown");
-    $h->header("X-Message" => $c->stash('message'));
+    $h->header("X-Message" => $message);
 
-    $h->append("Access-Control-Expose-Headers" => "X-Message")
-      if $c->stash('cors_strict');
+    $c->stash('cors.expose' => "X-Message")
+      if $c->stash('cors.origin');
 
     return $c;
   });
@@ -132,6 +125,12 @@ sub register {
   $app->helper(useragent_string => sub {
     substr shift->req->headers->user_agent || "unknown", 0, 1024
   });
+
+  #
+  # Routes
+  #
+
+  $app->routes->add_type(str => qr/[0-9a-z-]{4,64}/i);
 
   #
   # Validators
