@@ -1,10 +1,10 @@
 package Mojolicious::Plugin::MoreHelpers;
-use Mojo::Base "Mojolicious::Plugin";
+use Mojo::Base 'Mojolicious::Plugin';
 
 use Scalar::Util qw/looks_like_number/;
 
 ## no critic
-our $VERSION = "1.05_001";
+our $VERSION = '1.05_002';
 $VERSION = eval $VERSION;
 ## use critic
 
@@ -18,43 +18,43 @@ sub register {
   $app->helper('reply.bad_request' => sub {
     my ($c, $message) = @_;
 
-    $message ||= "error.validation_failed";
-    $c->message_reply($message)->render(status => 400);
+    $message ||= 'error.validation_failed';
+    $c->message_header($message)->render(status => 400);
   });
 
   $app->helper('reply.unauthorized' => sub {
     my ($c, $message) = @_;
 
-    $message ||= "error.authorization_failed";
-    $c->message_reply($message)->render(status => 401);
+    $message ||= 'error.authorization_failed';
+    $c->message_header($message)->render(status => 401);
   });
 
   $app->helper('reply.forbidden' => sub {
     my ($c, $message) = @_;
 
-    $message ||= "error.access_denied";
-    $c->message_reply($message)->render(status => 403);
+    $message ||= 'error.access_denied';
+    $c->message_header($message)->render(status => 403);
   });
 
   $app->helper('reply.unprocessable' => sub {
     my ($c, $message) = @_;
 
-    $message ||= "error.unprocessable_entity";
-    $c->message_reply($message)->render(status => 422);
+    $message ||= 'error.unprocessable_entity';
+    $c->message_header($message)->render(status => 422);
   });
 
   $app->helper('reply.locked' => sub {
     my ($c, $message) = @_;
 
-    $message ||= "error.temporary_locked";
-    $c->message_reply($message)->render(status => 423);
+    $message ||= 'error.temporary_locked';
+    $c->message_header($message)->render(status => 423);
   });
 
   $app->helper('reply.rate_limit' => sub {
     my ($c, $message) = @_;
 
-    $message ||= "error.too_many_requests";
-    $c->message_reply($message)->render(status => 429);
+    $message ||= 'error.too_many_requests';
+    $c->message_header($message)->render(status => 429);
   });
 
   $app->helper('reply.catch' => sub {
@@ -87,7 +87,7 @@ sub register {
     for my $key (keys %$json) {
       my $success = 0;
 
-      unless (ref $json->{$key}) { $success = 1 }
+      if (not ref $json->{$key}) { $success = 1 }
 
       elsif (ref $json->{$key} eq 'ARRAY') {
         # Success only if there are no any refs in array
@@ -100,30 +100,31 @@ sub register {
     return $v;
   });
 
-  $app->helper(header_first => sub {
-    my ($c, @names) = @_;
-
-    for my $name (@names) {
-      my @values = split /,\s*/, $c->req->headers->header($name) || "";
-      return $values[0] if $values[0];
-    }
-  });
-
-  $app->helper(message_reply => sub {
+  $app->helper(message_header => sub {
     my ($c, $message) = @_;
 
     my $h = $c->res->headers;
 
-    $h->header("X-Message" => $message);
-
-    $c->stash('cors.expose' => "X-Message")
-      if $c->stash('cors.origin');
+    $h->header('X-Message' => $message);
 
     return $c;
   });
 
   $app->helper(useragent_string => sub {
-    substr shift->req->headers->user_agent || "unknown", 0, 1024
+    substr shift->req->headers->user_agent || '', 0, 1024
+  });
+
+  $app->helper(custom_headers => sub {
+    my ($c, %headers) = @_;
+
+    my $h = $c->res->headers;
+
+    for my $name (keys %headers) {
+      next unless defined $headers{$name};
+      $h->header($name => $headers{$name});
+    }
+
+    return $c;
   });
 
   #
