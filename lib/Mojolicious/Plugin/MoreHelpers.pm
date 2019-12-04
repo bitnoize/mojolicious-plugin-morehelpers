@@ -4,7 +4,7 @@ use Mojo::Base 'Mojolicious::Plugin';
 use Scalar::Util qw/looks_like_number/;
 
 ## no critic
-our $VERSION = '1.05_002';
+our $VERSION = '1.05_006';
 $VERSION = eval $VERSION;
 ## use critic
 
@@ -19,42 +19,49 @@ sub register {
     my ($c, $message) = @_;
 
     $message ||= 'error.validation_failed';
-    $c->message_header($message)->render(status => 400);
+    $c->reply_message($message, 400);
   });
 
   $app->helper('reply.unauthorized' => sub {
     my ($c, $message) = @_;
 
     $message ||= 'error.authorization_failed';
-    $c->message_header($message)->render(status => 401);
+    $c->reply_message($message => 401);
   });
 
   $app->helper('reply.forbidden' => sub {
     my ($c, $message) = @_;
 
     $message ||= 'error.access_denied';
-    $c->message_header($message)->render(status => 403);
+    $c->reply_message($message => 403);
+  });
+
+  $app->helper('reply.not_acceptable' => sub {
+    my ($c, $message) = @_;
+
+    $message ||= 'error.not_acceptable';
+    $c->reply_message($message => 406);
   });
 
   $app->helper('reply.unprocessable' => sub {
     my ($c, $message) = @_;
 
     $message ||= 'error.unprocessable_entity';
-    $c->message_header($message)->render(status => 422);
+    $c->reply_message($message => 422);
   });
 
   $app->helper('reply.locked' => sub {
     my ($c, $message) = @_;
 
     $message ||= 'error.temporary_locked';
-    $c->message_header($message)->render(status => 423);
+    $c->reply_message($message => 423);
   });
 
   $app->helper('reply.rate_limit' => sub {
     my ($c, $message) = @_;
 
     $message ||= 'error.too_many_requests';
-    $c->message_header($message)->render(status => 429);
+    $c->reply_message($message => 429);
   });
 
   $app->helper('reply.catch' => sub {
@@ -100,14 +107,16 @@ sub register {
     return $v;
   });
 
-  $app->helper(message_header => sub {
-    my ($c, $message) = @_;
+  $app->helper(reply_message => sub {
+    my ($c, $message, $status) = @_;
 
-    my $h = $c->res->headers;
+    $c->stash(message => $message ||= 'error.unknown_error');
+    $c->stash(status  => $status  ||= 520);
 
-    $h->header('X-Message' => $message);
-
-    return $c;
+    $c->respond_to(
+      json  => { json => { message => $message } },
+      any   => { text => $message }
+    );
   });
 
   $app->helper(useragent_string => sub {
@@ -156,7 +165,7 @@ sub register {
     my $time  = sprintf "%-10.10s", shift;
     my $level = sprintf "%-5.5s", shift;
 
-    return sprintf "$time [$level] %s", join "\n", @_, "";
+    return sprintf "$time [$level] %s", join "\n", @_, '';
   });
 }
 
