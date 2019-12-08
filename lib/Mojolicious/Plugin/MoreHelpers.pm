@@ -1,10 +1,8 @@
 package Mojolicious::Plugin::MoreHelpers;
 use Mojo::Base 'Mojolicious::Plugin';
 
-use Scalar::Util qw/looks_like_number/;
-
 ## no critic
-our $VERSION = '1.05_006';
+our $VERSION = '1.05_008';
 $VERSION = eval $VERSION;
 ## use critic
 
@@ -123,7 +121,7 @@ sub register {
     substr shift->req->headers->user_agent || '', 0, 1024
   });
 
-  $app->helper(custom_headers => sub {
+  $app->helper(onward_headers => sub {
     my ($c, %headers) = @_;
 
     my $h = $c->res->headers;
@@ -134,27 +132,6 @@ sub register {
     }
 
     return $c;
-  });
-
-  #
-  # Routes
-  #
-
-  $app->routes->add_type(str => qr/[0-9a-z-]{4,64}/i);
-
-  #
-  # Validators
-  #
-
-  $app->validator->add_check(range => sub {
-    my ($validate, $name, $value, $min, $max) = @_;
-
-    return 1 unless looks_like_number $value;
-    return int $value < $min || int $value > $max ? 1 : 0;
-  });
-
-  $app->validator->add_check(boolean => sub {
-    shift->in(0, 1)->has_error(shift)
   });
 
   #
