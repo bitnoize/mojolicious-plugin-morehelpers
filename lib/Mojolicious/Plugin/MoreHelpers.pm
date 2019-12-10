@@ -2,7 +2,7 @@ package Mojolicious::Plugin::MoreHelpers;
 use Mojo::Base 'Mojolicious::Plugin';
 
 ## no critic
-our $VERSION = '1.05_008';
+our $VERSION = '1.05_011';
 $VERSION = eval $VERSION;
 ## use critic
 
@@ -32,6 +32,13 @@ sub register {
 
     $message ||= 'error.access_denied';
     $c->reply_message($message => 403);
+  });
+
+  $app->helper('reply.not_found' => sub {
+    my ($c, $message) = @_;
+
+    $message ||= 'error.resource_not_found';
+    $c->reply_message($message => 404);
   });
 
   $app->helper('reply.not_acceptable' => sub {
@@ -64,6 +71,8 @@ sub register {
 
   $app->helper('reply.catch' => sub {
     my ($c, $message, $status) = @_;
+
+    $c->stash(json => {});
 
     my %hash = (
       bad_request   => sub { $c->reply->bad_request(@_)   },
@@ -111,10 +120,7 @@ sub register {
     $c->stash(message => $message ||= 'error.unknown_error');
     $c->stash(status  => $status  ||= 520);
 
-    $c->respond_to(
-      json  => { json => { message => $message } },
-      any   => { text => $message }
-    );
+    $c->render(json => { message => $message });
   });
 
   $app->helper(useragent_string => sub {
