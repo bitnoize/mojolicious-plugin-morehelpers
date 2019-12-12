@@ -2,7 +2,7 @@ package Mojolicious::Plugin::MoreHelpers;
 use Mojo::Base 'Mojolicious::Plugin';
 
 ## no critic
-our $VERSION = '1.05_011';
+our $VERSION = '1.05_012';
 $VERSION = eval $VERSION;
 ## use critic
 
@@ -34,10 +34,10 @@ sub register {
     $c->reply_message($message => 403);
   });
 
-  $app->helper('reply.not_found' => sub {
+  $app->helper('reply.not_exist' => sub {
     my ($c, $message) = @_;
 
-    $message ||= 'error.resource_not_found';
+    $message ||= 'error.resource_not_exist';
     $c->reply_message($message => 404);
   });
 
@@ -72,22 +72,20 @@ sub register {
   $app->helper('reply.catch' => sub {
     my ($c, $message, $status) = @_;
 
-    $c->stash(json => {});
-
-    my %hash = (
+    my %dispatch = (
       bad_request   => sub { $c->reply->bad_request(@_)   },
       unauthorized  => sub { $c->reply->unauthorized(@_)  },
       forbidden     => sub { $c->reply->forbidden(@_)     },
-      not_found     => sub { $c->reply->not_found(@_)     },
+      not_exist     => sub { $c->reply->not_exist(@_)     },
       unprocessable => sub { $c->reply->unprocessable(@_) },
       locked        => sub { $c->reply->locked(@_)        },
       rate_limit    => sub { $c->reply->rate_limit(@_)    },
       exception     => sub { $c->reply->exception(@_)     }
     );
 
-    $hash{$status ||= 'exception'}
-      ? $hash{$status}->($message)
-      : $hash{exception}->("Wrong catch status '$status'");
+    $dispatch{$status ||= 'exception'}
+      ? $dispatch{$status}->($message)
+      : $dispatch{exception}->("Wrong catch status: '$status'");
   });
 
   $app->helper(validation_json => sub {
