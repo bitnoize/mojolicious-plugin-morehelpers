@@ -2,7 +2,7 @@ package Mojolicious::Plugin::MoreHelpers;
 use Mojo::Base 'Mojolicious::Plugin';
 
 ## no critic
-our $VERSION = '1.05_012';
+our $VERSION = '1.05_015';
 $VERSION = eval $VERSION;
 ## use critic
 
@@ -13,60 +13,85 @@ sub register {
   # Helpers
   #
 
-  $app->helper('reply.bad_request' => sub {
-    my ($c, $message) = @_;
+  $app->helper('reply.success' => sub {
+    my ($c, %stash) = @_;
 
-    $message ||= 'error.validation_failed';
-    $c->reply_message($message, 400);
+    $stash{status}  //= 200;
+    $stash{message} //= "info.request_success";
+
+    $c->render_reply(%stash);
+  });
+
+  $app->helper('reply.bad_request' => sub {
+    my ($c, %stash) = @_;
+
+    $stash{status}  //= 400;
+    $stash{message} //= "error.validation_failed";
+
+    $c->render_reply(%stash);
   });
 
   $app->helper('reply.unauthorized' => sub {
-    my ($c, $message) = @_;
+    my ($c, %stash) = @_;
 
-    $message ||= 'error.authorization_failed';
-    $c->reply_message($message => 401);
+    $stash{status}  //= 401;
+    $stash{message} //= "error.authorization_failed";
+
+    $c->render_reply(%stash);
   });
 
   $app->helper('reply.forbidden' => sub {
-    my ($c, $message) = @_;
+    my ($c, %stash) = @_;
 
-    $message ||= 'error.access_denied';
-    $c->reply_message($message => 403);
+    $stash{status}  //= 403;
+    $stash{message} //= "error.access_denied";
+
+    $c->render_reply(%stash);
   });
 
   $app->helper('reply.not_exist' => sub {
-    my ($c, $message) = @_;
+    my ($c, %stash) = @_;
 
-    $message ||= 'error.resource_not_exist';
-    $c->reply_message($message => 404);
+    $stash{status}  //= 404;
+    $stash{message} //= "error.resource_not_exist";
+
+    $c->render_reply(%stash);
   });
 
   $app->helper('reply.not_acceptable' => sub {
-    my ($c, $message) = @_;
+    my ($c, %stash) = @_;
 
-    $message ||= 'error.not_acceptable';
-    $c->reply_message($message => 406);
+    $stash{status}  //= 406;
+    $stash{message} //= "error.not_acceptable";
+
+    $c->render_reply(%stash);
   });
 
   $app->helper('reply.unprocessable' => sub {
-    my ($c, $message) = @_;
+    my ($c, %stash) = @_;
 
-    $message ||= 'error.unprocessable_entity';
-    $c->reply_message($message => 422);
+    $stash{status}  //= 422;
+    $stash{message} //= "error.unprocessable_entity";
+
+    $c->render_reply(%stash);
   });
 
   $app->helper('reply.locked' => sub {
-    my ($c, $message) = @_;
+    my ($c, %stash) = @_;
 
-    $message ||= 'error.temporary_locked';
-    $c->reply_message($message => 423);
+    $stash{status}  //= 423;
+    $stash{message} //= "error.temporary_locked";
+
+    $c->render_reply(%stash);
   });
 
   $app->helper('reply.rate_limit' => sub {
-    my ($c, $message) = @_;
+    my ($c, %stash) = @_;
 
-    $message ||= 'error.too_many_requests';
-    $c->reply_message($message => 429);
+    $stash{status}  //= 429;
+    $stash{message} //= "error.too_many_requests";
+
+    $c->render_reply(%stash);
   });
 
   $app->helper('reply.catch' => sub {
@@ -83,9 +108,9 @@ sub register {
       exception     => sub { $c->reply->exception(@_)     }
     );
 
-    $dispatch{$status ||= 'exception'}
-      ? $dispatch{$status}->($message)
-      : $dispatch{exception}->("Wrong catch status: '$status'");
+    $dispatch{$status //= 'exception'}
+      ? $dispatch{$status}->(message => $message)
+      : $dispatch{exception}->(message => "Wrong catch status: '$status'");
   });
 
   $app->helper(validation_json => sub {
@@ -112,13 +137,18 @@ sub register {
     return $v;
   });
 
-  $app->helper(reply_message => sub {
-    my ($c, $message, $status) = @_;
+  $app->helper(render_reply => sub {
+    my ($c, %stash) = @_;
 
-    $c->stash(message => $message ||= 'error.unknown_error');
-    $c->stash(status  => $status  ||= 520);
+    $c->stash(
+      json    => $stash{json}     //= {},
+      status  => $stash{status}   //= 520,
+      message => $stash{message}  //= "error.unknown_error"
+    );
 
-    $c->render(json => { message => $message });
+    $c->res->headers->header('X-Message' => $stash{message});
+
+    $c->render;
   });
 
   $app->helper(useragent_string => sub {
