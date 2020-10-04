@@ -1,93 +1,165 @@
 package Mojolicious::Plugin::MoreHelpers;
 use Mojo::Base 'Mojolicious::Plugin';
 
-## no critic
-our $VERSION = '1.05_016';
+our $VERSION = '0.01';
 $VERSION = eval $VERSION;
-## use critic
 
 sub register {
   my ($self, $app, $conf) = @_;
 
-  #
-  # Helpers
-  #
+  $app->helper('reply.success' => sub {
+    my ($c, $json, %onward) = @_;
+
+    my $h = $c->res->headers;
+
+    $h->header('X-List-Cursor' => $onward{cursor})
+      if defined $onward{cursor};
+
+    $h->header('X-List-Limit' => $onward{limit})
+      if defined $onward{limit};
+
+    $h->header('X-List-Size' => $onward{size})
+      if defined $onward{size};
+
+    my $default_status = $c->req->method eq 'POST' ? 201 : 200;
+    my $status = $onward{status} || $default_status;
+
+    $c->render(json => $json || {}, status => $status);
+  });
 
   $app->helper('reply.bad_request' => sub {
-    my ($c, $message) = @_;
+    my ($c, %onward) = @_;
 
-    $c->render_error(status => 400,
-      message => $message // "error.validation_failed");
+    my $h = $c->res->headers;
+
+    my $status  = $onward{status}  || 400;
+    my $message = $onward{message} || "error.validation_failed";
+
+    $h->header('X-Message' => $message);
+    $c->render(json => {}, status => $status);
   });
 
   $app->helper('reply.unauthorized' => sub {
-    my ($c, $message) = @_;
+    my ($c, %onward) = @_;
 
-    $c->render_error(status => 401,
-      message => $message // "error.authorization_failed");
+    my $h = $c->res->headers;
+
+    my $status  = $onward{status}  || 401;
+    my $message = $onward{message} || "error.authorization_failed";
+
+    $h->header('X-Message' => $message);
+    $c->render(json => {}, status => $status);
   });
 
   $app->helper('reply.forbidden' => sub {
-    my ($c, $message) = @_;
+    my ($c, %onward) = @_;
 
-    $c->render_error(status => 403,
-      message => $message // "error.access_denied");
+    my $h = $c->res->headers;
+
+    my $status  = $onward{status}  || 403;
+    my $message = $onward{message} || "error.access_denied";
+
+    $h->header('X-Message' => $message);
+    $c->render(json => {}, status => $status);
   });
 
-  $app->helper('reply.not_exist' => sub {
-    my ($c, $message) = @_;
+  $app->helper('reply.not_exists' => sub {
+    my ($c, %onward) = @_;
 
-    $c->render_error(status => 404,
-      message => $message // "error.resource_not_exist");
+    my $h = $c->res->headers;
+
+    my $status  = $onward{status}  || 404;
+    my $message = $onward{message} || "error.resource_not_found";
+
+    $h->header('X-Message' => $message);
+    $c->render(json => {}, status => $status);
   });
 
   $app->helper('reply.not_acceptable' => sub {
-    my ($c, $message) = @_;
+    my ($c, %onward) = @_;
 
-    $c->render_error(status => 406,
-      message => $message // "error.not_acceptable");
+    my $h = $c->res->headers;
+
+    my $status  = $onward{status}  || 406;
+    my $message = $onward{message} || "error.not_acceptable";
+
+    $h->header('X-Message' => $message);
+    $c->render(json => {}, status => $status);
   });
 
   $app->helper('reply.unprocessable' => sub {
-    my ($c, $message) = @_;
+    my ($c, %onward) = @_;
 
-    $c->render_error(status => 422,
-      message => $message // "error.unprocessable_entity");
+    my $h = $c->res->headers;
+
+    my $status  = $onward{status}  || 422;
+    my $message = $onward{message} || "error.unprocessable_entity";
+
+    $h->header('X-Message' => $message);
+    $c->render(json => {}, status => $status);
   });
 
   $app->helper('reply.locked' => sub {
-    my ($c, $message) = @_;
+    my ($c, %onward) = @_;
 
-    $c->render_error(status => 423,
-      message => $message // "error.temporary_locked");
+    my $h = $c->res->headers;
+
+    my $status  = $onward{status}  || 423;
+    my $message = $onward{message} || "error.temporary_locked";
+
+    $h->header('X-Message' => $message);
+    $c->render(json => {}, status => $status);
   });
 
   $app->helper('reply.rate_limit' => sub {
-    my ($c, $message) = @_;
+    my ($c, %onward) = @_;
 
-    $c->render_error(status => 429,
-      message => $message // "error.too_many_requests");
+    my $h = $c->res->headers;
+
+    my $status  = $onward{status}  || 429;
+    my $message = $onward{message} || "error.too_many_requests";
+
+    $h->header('X-Message' => $message);
+    $c->render(json => {}, status => $status);
+  });
+
+  $app->helper('reply.unavailable' => sub {
+    my ($c, %onward) = @_;
+
+    my $h = $c->res->headers;
+
+    my $status  = $onward{status}  || 503;
+    my $message = $onward{message} || "error.service_unavailable";
+
+    $h->header('X-Message' => $message);
+    $c->render(json => {}, status => $status);
   });
 
   $app->helper('reply.catch' => sub {
-    my ($c, $message, $status) = @_;
+    my ($c, $message, $status, %onward) = @_;
 
-    my %dispatch = (
+    return $c->reply->exception($message) unless $status;
+
+    my %reply = (
       bad_request   => sub { $c->reply->bad_request(@_)   },
       unauthorized  => sub { $c->reply->unauthorized(@_)  },
       forbidden     => sub { $c->reply->forbidden(@_)     },
-      not_exist     => sub { $c->reply->not_exist(@_)     },
+      not_exists    => sub { $c->reply->not_exists(@_)    },
       unprocessable => sub { $c->reply->unprocessable(@_) },
       locked        => sub { $c->reply->locked(@_)        },
       rate_limit    => sub { $c->reply->rate_limit(@_)    },
-      exception     => sub { $c->reply->exception(@_)     }
+      unavailable   => sub { $c->reply->unavailable(@_)   },
     );
 
-    $dispatch{$status //= 'exception'}
-      ? $dispatch{$status}->($message)
-      : $dispatch{exception}->("Wrong catch status: '$status'");
+    my $reply = $reply{$status};
+
+    die "Wrong reply catch status '$status'"
+      unless defined $reply;
+
+    $reply->(%onward, message => $message);
   });
 
+  # Onle-level object validation
   $app->helper(validation_json => sub {
     my ($c) = @_;
 
@@ -111,44 +183,26 @@ sub register {
 
     return $v;
   });
-
-  $app->helper(render_error => sub {
-    my ($c, %opts) = @_;
-
-    $c->stash(status  => $opts{status}  //= 520);
-    $c->stash(message => $opts{message} //= "error.unknown_error");
-
-    $c->res->headers->header('X-Message' => $opts{message});
-    $c->render(json => $opts{json} //= {});
-  });
-
-  $app->helper(useragent_string => sub {
-    substr shift->req->headers->user_agent || '', 0, 1024
-  });
-
-  $app->helper(onward_headers => sub {
-    my ($c, %headers) = @_;
-
-    my $h = $c->res->headers;
-
-    for my $name (keys %headers) {
-      next unless defined $headers{$name};
-      $h->header($name => $headers{$name});
-    }
-
-    return $c;
-  });
-
-  #
-  # Logs
-  #
-
-  $app->log->format(sub {
-    my $time  = sprintf "%-10.10s", shift;
-    my $level = sprintf "%-5.5s", shift;
-
-    return sprintf "$time [$level] %s", join "\n", @_, '';
-  });
 }
 
 1;
+
+=encoding utf8
+
+=head1 NAME
+
+Mojolicious::Plugin::MoreHelpers - REST-like helpers 
+
+=head1 AUTHOR
+
+Dmitry Krutikov E<lt>monstar@cpan.orgE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 2020 Dmitry Krutikov.
+
+You may distribute under the terms of either the GNU General Public
+License or the Artistic License, as specified in the README file.
+
+=cut
+

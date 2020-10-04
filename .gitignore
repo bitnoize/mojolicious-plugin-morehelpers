@@ -4,6 +4,9 @@
 
 *~
 
+.old
+.bak
+
 log
 blib
 Makefile*
@@ -12,9 +15,5 @@ Makefile*
 MANIFEST*
 !MANIFEST.SKIP
 pm_to_blib
-
-debian/tmp
-debian/files
-debian/libmojolicious-plugin-morehelpers-perl*
-debian/debhelper-build-stamp
+debian
 

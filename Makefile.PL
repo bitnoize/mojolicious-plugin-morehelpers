@@ -10,9 +10,9 @@ WriteMakefile(
   VERSION_FROM  => "lib/Mojolicious/Plugin/MoreHelpers.pm",
   ABSTRACT      => "More REST-like helpers for Mojolicious",
   LICENSE      => 'artistic_2',
-  AUTHOR        => "Dmitry Krutikov <mitya\@whteam.net>",
+  AUTHOR        => "Dmitry Krutikov <monstar\@cpan.org>",
   PREREQ_PM     => {
-    "Mojolicious" => '8.22'
+    "Mojolicious" => '8.12'
   },
   test => { TESTS => 't/*.t' }
 );
