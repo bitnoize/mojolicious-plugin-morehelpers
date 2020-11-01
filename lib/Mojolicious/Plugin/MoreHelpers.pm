@@ -1,7 +1,7 @@
 package Mojolicious::Plugin::MoreHelpers;
 use Mojo::Base 'Mojolicious::Plugin';
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 $VERSION = eval $VERSION;
 
 sub register {
@@ -11,15 +11,6 @@ sub register {
     my ($c, $json, %onward) = @_;
 
     my $h = $c->res->headers;
-
-    $h->header('X-List-Cursor' => $onward{cursor})
-      if defined $onward{cursor};
-
-    $h->header('X-List-Limit' => $onward{limit})
-      if defined $onward{limit};
-
-    $h->header('X-List-Size' => $onward{size})
-      if defined $onward{size};
 
     my $default_status = $c->req->method eq 'POST' ? 201 : 200;
     my $status = $onward{status} || $default_status;
@@ -182,6 +173,19 @@ sub register {
     }
 
     return $v;
+  });
+
+  $app->helper(onward_headers => sub {
+    my ($c, %headers) = @_;
+
+    my $h = $c->res->headers;
+
+    for my $header (keys %headers) {
+      next unless defined $headers{$header};
+      $h->header($header => $headers{$header});
+    }
+
+    return $h;
   });
 }
 
