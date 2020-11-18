@@ -1,7 +1,10 @@
 package Mojolicious::Plugin::MoreHelpers;
 use Mojo::Base 'Mojolicious::Plugin';
 
-our $VERSION = '0.02';
+use Data::Validate::IP;
+use Email::Address;
+
+our $VERSION = '0.03';
 $VERSION = eval $VERSION;
 
 sub register {
@@ -57,7 +60,8 @@ sub register {
 
     my $h = $c->res->headers;
 
-    $h->header($_ => $headers{$_}) for keys %headers;
+    map { $h->header($_ => $headers{$_}) }
+      grep { defined $headers{$_} } keys %headers;
 
     return $c;
   });
@@ -204,6 +208,19 @@ sub register {
       unless defined $reply_json;
 
     $reply_json->(%onward, message => $message);
+  });
+
+  $app->validator->add_check(inet_address => sub {
+    my ($v, $name, $value) = @_;
+
+    return is_ip $value ? 0 : 1;
+  });
+
+  $app->validator->add_check(email_address => sub {
+    my ($validate, $name, $value) = @_;
+
+    my ($email) = Email::Address->parse($value);
+    return defined $email && $email->address ? 0 : 1;
   });
 }
 

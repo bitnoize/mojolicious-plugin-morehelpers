@@ -7,3 +7,6 @@
   - Helpers headers_more and route_params added.
   - Basic module documentation.
 
+0.03 2020-11-18
+  - Added 'inet_address' and 'email_address' validators.
+
