@@ -4,12 +4,13 @@ use Mojo::Base 'Mojolicious::Plugin';
 use Data::Validate::IP;
 use Email::Address;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 $VERSION = eval $VERSION;
 
 sub register {
   my ($self, $app, $conf) = @_;
 
+  # Route params
   $app->helper(route_params => sub {
     my ($c, @names) = @_;
 
@@ -31,6 +32,7 @@ sub register {
     return \%params;
   });
 
+  # Simple onle-level depth object validation
   $app->helper(validation_json => sub {
     my ($c) = @_;
 
@@ -55,141 +57,127 @@ sub register {
     return $v;
   });
 
-  $app->helper(headers_more => sub {
-    my ($c, %headers) = @_;
+  $app->helper('reply_json.success' => sub {
+    my ($c, $json, %headers) = @_;
 
     my $h = $c->res->headers;
-
     map { $h->header($_ => $headers{$_}) }
       grep { defined $headers{$_} } keys %headers;
 
-    return $c;
-  });
-
-  $app->helper('reply_json.success' => sub {
-    my ($c, $json, %onward) = @_;
-
-    my $h = $c->res->headers;
-
-    my $default_status = $c->req->method eq 'POST' ? 201 : 200;
-    my $status = $onward{status} || $default_status;
-
-    $c->render(json => $json || { }, status => $status);
+    my $status = $c->req->method eq 'POST' ? 201 : 200;
+    $c->render(json => $json // { }, status => $status);
   });
 
   $app->helper('reply_json.bad_request' => sub {
-    my ($c, %onward) = @_;
+    my ($c, %headers) = @_;
+
+    $headers{'X-Message'} //= "error.validation_failed";
 
     my $h = $c->res->headers;
+    map { $h->header($_ => $headers{$_}) }
+      grep { defined $headers{$_} } keys %headers;
 
-    my $status  = $onward{status}  || 400;
-    my $message = $onward{message} || "error.validation_failed";
-
-    $h->header('X-Message' => $message);
-    $c->render(json => { }, status => $status);
+    $c->render(json => { }, status => 400);
   });
 
   $app->helper('reply_json.unauthorized' => sub {
-    my ($c, %onward) = @_;
+    my ($c, %headers) = @_;
+
+    $headers{'X-Message'} //= "error.authorization_failed";
 
     my $h = $c->res->headers;
+    map { $h->header($_ => $headers{$_}) }
+      grep { defined $headers{$_} } keys %headers;
 
-    my $status  = $onward{status}  || 401;
-    my $message = $onward{message} || "error.authorization_failed";
-
-    $h->header('X-Message' => $message);
-    $c->render(json => { }, status => $status);
+    $c->render(json => { }, status => 401);
   });
 
   $app->helper('reply_json.forbidden' => sub {
-    my ($c, %onward) = @_;
+    my ($c, %headers) = @_;
+
+    $headers{'X-Message'} //= "error.access_denied";
 
     my $h = $c->res->headers;
+    map { $h->header($_ => $headers{$_}) }
+      grep { defined $headers{$_} } keys %headers;
 
-    my $status  = $onward{status}  || 403;
-    my $message = $onward{message} || "error.access_denied";
-
-    $h->header('X-Message' => $message);
-    $c->render(json => { }, status => $status);
+    $c->render(json => { }, status => 403);
   });
 
   $app->helper('reply_json.not_found' => sub {
-    my ($c, %onward) = @_;
+    my ($c, %headers) = @_;
+
+    $headers{'X-Message'} //= "error.resource_not_found";
 
     my $h = $c->res->headers;
+    map { $h->header($_ => $headers{$_}) }
+      grep { defined $headers{$_} } keys %headers;
 
-    my $status  = $onward{status}  || 404;
-    my $message = $onward{message} || "error.resource_not_found";
-
-    $h->header('X-Message' => $message);
-    $c->render(json => { }, status => $status);
+    $c->render(json => { }, status => 404);
   });
 
   $app->helper('reply_json.not_acceptable' => sub {
-    my ($c, %onward) = @_;
+    my ($c, %headers) = @_;
+
+    $headers{'X-Message'} //= "error.not_acceptable";
 
     my $h = $c->res->headers;
+    map { $h->header($_ => $headers{$_}) }
+      grep { defined $headers{$_} } keys %headers;
 
-    my $status  = $onward{status}  || 406;
-    my $message = $onward{message} || "error.not_acceptable";
-
-    $h->header('X-Message' => $message);
-    $c->render(json => { }, status => $status);
+    $c->render(json => { }, status => 406);
   });
 
   $app->helper('reply_json.unprocessable' => sub {
-    my ($c, %onward) = @_;
+    my ($c, %headers) = @_;
+
+    $headers{'X-Message'} //= "error.unprocessable_entity";
 
     my $h = $c->res->headers;
+    map { $h->header($_ => $headers{$_}) }
+      grep { defined $headers{$_} } keys %headers;
 
-    my $status  = $onward{status}  || 422;
-    my $message = $onward{message} || "error.unprocessable_entity";
-
-    $h->header('X-Message' => $message);
-    $c->render(json => { }, status => $status);
+    $c->render(json => { }, status => 422);
   });
 
   $app->helper('reply_json.locked' => sub {
-    my ($c, %onward) = @_;
+    my ($c, %headers) = @_;
+
+    $headers{'X-Message'} //= "error.temporary_locked";
 
     my $h = $c->res->headers;
+    map { $h->header($_ => $headers{$_}) }
+      grep { defined $headers{$_} } keys %headers;
 
-    my $status  = $onward{status}  || 423;
-    my $message = $onward{message} || "error.temporary_locked";
-
-    $h->header('X-Message' => $message);
-    $c->render(json => { }, status => $status);
+    $c->render(json => { }, status => 423);
   });
 
   $app->helper('reply_json.rate_limit' => sub {
-    my ($c, %onward) = @_;
+    my ($c, %headers) = @_;
+
+    $headers{'X-Message'} //= "error.too_many_requests";
 
     my $h = $c->res->headers;
+    map { $h->header($_ => $headers{$_}) }
+      grep { defined $headers{$_} } keys %headers;
 
-    my $status  = $onward{status}  || 429;
-    my $message = $onward{message} || "error.too_many_requests";
-
-    $h->header('X-Message' => $message);
-    $c->render(json => { }, status => $status);
+    $c->render(json => { }, status => 429);
   });
 
   $app->helper('reply_json.unavailable' => sub {
-    my ($c, %onward) = @_;
+    my ($c, %headers) = @_;
+
+    $headers{'X-Message'} //= "error.service_unavailable";
 
     my $h = $c->res->headers;
+    map { $h->header($_ => $headers{$_}) }
+      grep { defined $headers{$_} } keys %headers;
 
-    my $status  = $onward{status}  || 503;
-    my $message = $onward{message} || "error.service_unavailable";
-
-    $h->header('X-Message' => $message);
-    $c->render(json => { }, status => $status);
+    $c->render(json => { }, status => 503);
   });
 
-  $app->helper('reply_json.catch' => sub {
-    my ($c, $message, $status, %onward) = @_;
-
-    # Compile error if there is no status defined
-    return $c->reply->exception($message) unless $status;
+  $app->helper('reply_json.dispatch' => sub {
+    my ($c, $status, %headers) = @_;
 
     my %dispatch = (
       bad_request   => sub { $c->reply_json->bad_request(@_)    },
@@ -202,25 +190,25 @@ sub register {
       unavailable   => sub { $c->reply_json->unavailable(@_)    },
     );
 
-    my $reply_json = $dispatch{$status};
+    my $dispatch = $dispatch{$status};
 
-    die "Wrong reply_json catch status '$status'\n"
-      unless defined $reply_json;
+    die "Wrong reply_json dispatch status '$status'\n"
+      unless defined $dispatch;
 
-    $reply_json->(%onward, message => $message);
+    $dispatch->(%headers);
   });
 
   $app->validator->add_check(inet_address => sub {
     my ($v, $name, $value) = @_;
 
-    return is_ip $value ? 0 : 1;
+    return is_ip $value ? undef : 1;
   });
 
   $app->validator->add_check(email_address => sub {
     my ($validate, $name, $value) = @_;
 
     my ($email) = Email::Address->parse($value);
-    return defined $email && $email->address ? 0 : 1;
+    return defined $email && $email->address ? undef : 1;
   });
 }
 
@@ -261,77 +249,89 @@ Recursive collect current route params and his parents.
 
 Merge flat request JSON object with validation.
 
-=head2 headers_more
+=head2 headers_response
 
-  my $h = $c->headers_more(%headers);
+  my $h = $c->headers_response(%headers);
 
 Set multiple reponse headers in one time.
 
 =head2 reply_json->success
 
-  $c->reply_json->success($data, %onward);
+  $c->reply_json->success($data, %headers);
 
 Render the success JSON object with status code, depend on POST or GET request.
 
 =head2 reply_json->bad_request
 
-  $c->reply_json->bad_request(%onward);
+  $c->reply_json->bad_request(%headers);
 
 Render empty JSON object with 400 Bad Request HTTP status.
 
 =head2 reply_json->unquthorized
 
-  $c->reply_json->unauthorized(%onward);
+  $c->reply_json->unauthorized(%headers);
 
 Render empty JSON object with 401 HTTP status.
 
 =head2 reply_json->forbidden
 
-  $c->reply_json->forbidden(%onward);
+  $c->reply_json->forbidden(%headers);
 
 Render empty JSON object with 403 Forbidden HTTP status.
 
 =head2 reply_json->not_found
 
-  $c->reply_json->not_found(%onward);
+  $c->reply_json->not_found(%headers);
 
 Render empty JSON object with 404 Not Found HTTP status.
 
 =head2 reply_json->not_acceptable
 
-  $c->reply-_json>not_acceptable(%onward);
+  $c->reply-_json>not_acceptable(%headers);
 
 Render empty JSON object with 406 HTTP status.
 
 =head2 reply_json->unprocessable
 
-  $c->reply_json->unprocessable(%onward);
+  $c->reply_json->unprocessable(%headers);
 
 Render empty JSON object with 422 HTTP status.
 
 =head2 reply_json->locked
 
-  $c->reply_json->locked(%onward);
+  $c->reply_json->locked(%headers);
 
 Render empty JSON object with 423 HTTP status.
 
 =head2 reply_json->rate_limit
 
-  $c->reply_json->rate_limit(%onward);
+  $c->reply_json->rate_limit(%headers);
 
 Render empty JSON object with 429 HTTP status.
 
 =head2 reply_json->unavailable
 
-  $c->reply_json->unavailable(%onward);
+  $c->reply_json->unavailable(%headers);
 
 Render empty JSON object with 503 HTTP status.
 
-=head2 reply_json->catch
+=head2 reply_json->dispatch
 
-  $c->reply_json->catch($message, $status, %onward);
+  $c->reply_json->dispatch($status, %headers);
 
 Dispatch with status and render properly error code.
+
+=head1 CHECKS
+
+Validation checks.
+
+=head2 inet_address
+
+String value is a internet IPv4 or IPv6 address.
+
+=head2 email_address
+
+String value is a valie Email address.
 
 =head1 METHODS
 
