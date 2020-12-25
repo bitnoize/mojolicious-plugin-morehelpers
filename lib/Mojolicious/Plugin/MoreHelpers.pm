@@ -10,6 +10,8 @@ $VERSION = eval $VERSION;
 sub register {
   my ($self, $app, $conf) = @_;
 
+  $conf->{header_message} //= 'X-Message';
+
   # Route params
   $app->helper(route_params => sub {
     my ($c, @names) = @_;
@@ -57,12 +59,21 @@ sub register {
     return $v;
   });
 
+  my $reply_headers = sub {
+    my ($c, $headers, $message) = @_;
+
+    $headers->{$conf->{header_message}} //= $message
+      if defined $message;
+
+    my $h = $c->res->headers;
+    map { $h->header($_ => $headers->{$_}) }
+      grep { defined $headers->{$_} } keys %$headers;
+  };
+
   $app->helper('reply_json.success' => sub {
     my ($c, $json, %headers) = @_;
 
-    my $h = $c->res->headers;
-    map { $h->header($_ => $headers{$_}) }
-      grep { defined $headers{$_} } keys %headers;
+    $reply_headers->($c, \%headers);
 
     my $status = $c->req->method eq 'POST' ? 201 : 200;
     $c->render(json => $json // { }, status => $status);
@@ -71,115 +82,77 @@ sub register {
   $app->helper('reply_json.bad_request' => sub {
     my ($c, %headers) = @_;
 
-    $headers{'X-Message'} //= "error.validation_failed";
-
-    my $h = $c->res->headers;
-    map { $h->header($_ => $headers{$_}) }
-      grep { defined $headers{$_} } keys %headers;
-
+    $reply_headers->($c, \%headers, "error.validation_failed");
     $c->render(json => { }, status => 400);
   });
 
   $app->helper('reply_json.unauthorized' => sub {
     my ($c, %headers) = @_;
 
-    $headers{'X-Message'} //= "error.authorization_failed";
-
-    my $h = $c->res->headers;
-    map { $h->header($_ => $headers{$_}) }
-      grep { defined $headers{$_} } keys %headers;
-
+    $reply_headers->($c, \%headers, "error.authorization_failed");
     $c->render(json => { }, status => 401);
   });
 
   $app->helper('reply_json.forbidden' => sub {
     my ($c, %headers) = @_;
 
-    $headers{'X-Message'} //= "error.access_denied";
-
-    my $h = $c->res->headers;
-    map { $h->header($_ => $headers{$_}) }
-      grep { defined $headers{$_} } keys %headers;
-
+    $reply_headers->($c, \%headers, "error.access_denied");
     $c->render(json => { }, status => 403);
   });
 
   $app->helper('reply_json.not_found' => sub {
     my ($c, %headers) = @_;
 
-    $headers{'X-Message'} //= "error.resource_not_found";
-
-    my $h = $c->res->headers;
-    map { $h->header($_ => $headers{$_}) }
-      grep { defined $headers{$_} } keys %headers;
-
+    $reply_headers->($c, \%headers, "error.resource_not_found");
     $c->render(json => { }, status => 404);
   });
 
   $app->helper('reply_json.not_acceptable' => sub {
     my ($c, %headers) = @_;
 
-    $headers{'X-Message'} //= "error.not_acceptable";
-
-    my $h = $c->res->headers;
-    map { $h->header($_ => $headers{$_}) }
-      grep { defined $headers{$_} } keys %headers;
-
+    $reply_headers->($c, \%headers, "error.not_acceptable");
     $c->render(json => { }, status => 406);
   });
 
   $app->helper('reply_json.unprocessable' => sub {
     my ($c, %headers) = @_;
 
-    $headers{'X-Message'} //= "error.unprocessable_entity";
-
-    my $h = $c->res->headers;
-    map { $h->header($_ => $headers{$_}) }
-      grep { defined $headers{$_} } keys %headers;
-
+    $reply_headers->($c, \%headers, "error.unprocessable_entity");
     $c->render(json => { }, status => 422);
   });
 
   $app->helper('reply_json.locked' => sub {
     my ($c, %headers) = @_;
 
-    $headers{'X-Message'} //= "error.temporary_locked";
-
-    my $h = $c->res->headers;
-    map { $h->header($_ => $headers{$_}) }
-      grep { defined $headers{$_} } keys %headers;
-
+    $reply_headers->($c, \%headers, "error.temporary_locked");
     $c->render(json => { }, status => 423);
   });
 
   $app->helper('reply_json.rate_limit' => sub {
     my ($c, %headers) = @_;
 
-    $headers{'X-Message'} //= "error.too_many_requests";
-
-    my $h = $c->res->headers;
-    map { $h->header($_ => $headers{$_}) }
-      grep { defined $headers{$_} } keys %headers;
-
+    $reply_headers->($c, \%headers, "error.too_many_requests");
     $c->render(json => { }, status => 429);
   });
 
   $app->helper('reply_json.unavailable' => sub {
     my ($c, %headers) = @_;
 
-    $headers{'X-Message'} //= "error.service_unavailable";
-
-    my $h = $c->res->headers;
-    map { $h->header($_ => $headers{$_}) }
-      grep { defined $headers{$_} } keys %headers;
-
+    $reply_headers->($c, \%headers, "error.service_unavailable");
     $c->render(json => { }, status => 503);
   });
 
   $app->helper('reply_json.dispatch' => sub {
-    my ($c, $status, %headers) = @_;
+    my ($c, $status, $message, %headers) = @_;
 
-    my %dispatch = (
+    die "Wrong reply_json dispatch status\n"
+      unless defined $status and not ref $status;
+
+    die "Wrong reply_json dispatch message\n"
+      unless defined $message and not ref $message;
+
+    my %hash = (
+      success       => sub { $c->reply_json->success(@_)        },
       bad_request   => sub { $c->reply_json->bad_request(@_)    },
       unauthorized  => sub { $c->reply_json->unauthorized(@_)   },
       forbidden     => sub { $c->reply_json->forbidden(@_)      },
@@ -190,12 +163,12 @@ sub register {
       unavailable   => sub { $c->reply_json->unavailable(@_)    },
     );
 
-    my $dispatch = $dispatch{$status};
+    my $sub = $hash{$status};
 
     die "Wrong reply_json dispatch status '$status'\n"
-      unless defined $dispatch;
+      unless defined $sub;
 
-    $dispatch->(%headers);
+    $sub->(%headers, $conf->{header_message} => $message);
   });
 
   $app->validator->add_check(inet_address => sub {
