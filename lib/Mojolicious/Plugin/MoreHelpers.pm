@@ -4,34 +4,28 @@ use Mojo::Base 'Mojolicious::Plugin';
 use Data::Validate::IP;
 use Email::Address;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 $VERSION = eval $VERSION;
 
 sub register {
   my ($self, $app, $conf) = @_;
 
-  $conf->{header_message} //= 'X-Message';
+  $conf->{message_header} //= 'X-Message';
 
-  # Route params
-  $app->helper(route_params => sub {
-    my ($c, @names) = @_;
+  # Route param by name
+  $app->helper(route_param => sub {
+    my ($c, $name) = @_;
 
     my $route = $c->match->endpoint;
 
-    my %params;
-
     while ($route) {
-      for my $name (@names) {
-        next if exists $params{$name};
-        next unless exists $route->to->{$name};
-
-        $params{$name} = $route->to->{$name};
-      }
+      return $route->to->{$name}
+        if exists $route->to->{$name};
 
       $route = $route->parent;
     }
 
-    return \%params;
+    return undef;
   });
 
   # Simple onle-level depth object validation
@@ -40,7 +34,7 @@ sub register {
 
     my $v = $c->validation;
 
-    my $json = $c->req->json || { };
+    my $json = $c->req->json // { };
     $json = { } unless ref $json eq 'HASH';
 
     for my $key (keys %$json) {
@@ -59,116 +53,51 @@ sub register {
     return $v;
   });
 
-  my $reply_headers = sub {
-    my ($c, $headers, $message) = @_;
+  $app->helper(justify_status => sub {
+    my ($c, $strict, $message) = @_;
 
-    $headers->{$conf->{header_message}} //= $message
-      if defined $message;
+    $strict //= 'unknown';
 
-    my $h = $c->res->headers;
-    map { $h->header($_ => $headers->{$_}) }
-      grep { defined $headers->{$_} } keys %$headers;
-  };
+    my $sub = sub {
+      my ($status, $default_message) = @_;
 
-  $app->helper('reply_json.success' => sub {
-    my ($c, $json, %headers) = @_;
+      $message //= $default_message;
 
-    $reply_headers->($c, \%headers);
+      $c->stash(status => $status, message => $message);
+      $c->res->headers->header($conf->{message_header} => $message);
+    };
 
-    my $status = $c->req->method eq 'POST' ? 201 : 200;
-    $c->render(json => $json // { }, status => $status);
-  });
-
-  $app->helper('reply_json.bad_request' => sub {
-    my ($c, %headers) = @_;
-
-    $reply_headers->($c, \%headers, "error.validation_failed");
-    $c->render(json => { }, status => 400);
-  });
-
-  $app->helper('reply_json.unauthorized' => sub {
-    my ($c, %headers) = @_;
-
-    $reply_headers->($c, \%headers, "error.authorization_failed");
-    $c->render(json => { }, status => 401);
-  });
-
-  $app->helper('reply_json.forbidden' => sub {
-    my ($c, %headers) = @_;
-
-    $reply_headers->($c, \%headers, "error.access_denied");
-    $c->render(json => { }, status => 403);
-  });
-
-  $app->helper('reply_json.not_found' => sub {
-    my ($c, %headers) = @_;
-
-    $reply_headers->($c, \%headers, "error.resource_not_found");
-    $c->render(json => { }, status => 404);
-  });
-
-  $app->helper('reply_json.not_acceptable' => sub {
-    my ($c, %headers) = @_;
-
-    $reply_headers->($c, \%headers, "error.not_acceptable");
-    $c->render(json => { }, status => 406);
-  });
-
-  $app->helper('reply_json.unprocessable' => sub {
-    my ($c, %headers) = @_;
-
-    $reply_headers->($c, \%headers, "error.unprocessable_entity");
-    $c->render(json => { }, status => 422);
-  });
-
-  $app->helper('reply_json.locked' => sub {
-    my ($c, %headers) = @_;
-
-    $reply_headers->($c, \%headers, "error.temporary_locked");
-    $c->render(json => { }, status => 423);
-  });
-
-  $app->helper('reply_json.rate_limit' => sub {
-    my ($c, %headers) = @_;
-
-    $reply_headers->($c, \%headers, "error.too_many_requests");
-    $c->render(json => { }, status => 429);
-  });
-
-  $app->helper('reply_json.unavailable' => sub {
-    my ($c, %headers) = @_;
-
-    $reply_headers->($c, \%headers, "error.service_unavailable");
-    $c->render(json => { }, status => 503);
-  });
-
-  $app->helper('reply_json.dispatch' => sub {
-    my ($c, $status, $message, %headers) = @_;
-
-    die "Wrong reply_json dispatch status\n"
-      unless defined $status and not ref $status;
-
-    die "Wrong reply_json dispatch message\n"
-      unless defined $message and not ref $message;
-
-    my %hash = (
-      success       => sub { $c->reply_json->success(@_)        },
-      bad_request   => sub { $c->reply_json->bad_request(@_)    },
-      unauthorized  => sub { $c->reply_json->unauthorized(@_)   },
-      forbidden     => sub { $c->reply_json->forbidden(@_)      },
-      not_found     => sub { $c->reply_json->not_found(@_)      },
-      unprocessable => sub { $c->reply_json->unprocessable(@_)  },
-      locked        => sub { $c->reply_json->locked(@_)         },
-      rate_limit    => sub { $c->reply_json->rate_limit(@_)     },
-      unavailable   => sub { $c->reply_json->unavailable(@_)    },
+    my %table = (
+      bad_request     => sub { $sub->(400, "error.validation_failed")    },
+      unauthorized    => sub { $sub->(401, "error.authorization_failed") },
+      forbidden       => sub { $sub->(403, "error.access_denied")        },
+      not_found       => sub { $sub->(404, "error.resource_not_found")   },
+      not_acceptable  => sub { $sub->(406, "error.not_acceptable")       },
+      unprocessable   => sub { $sub->(422, "error.unprocessable_entity") },
+      locked          => sub { $sub->(423, "error.temporary_locked")     },
+      rate_limit      => sub { $sub->(429, "error.too_many_requests")    },
+      unavailable     => sub { $sub->(503, "error.service_unavailable")  },
     );
 
-    my $sub = $hash{$status};
+    die "Wrong response_error strict '$strict'\n"
+      unless defined $table{$strict};
 
-    die "Wrong reply_json dispatch status '$status'\n"
-      unless defined $sub;
+    $table{$strict}->();
 
-    $sub->(%headers, $conf->{header_message} => $message);
+    return $c;
+  });
+
+  $app->helper(custom_headers => sub {
+    my ($c, %onward) = @_;
+
+    my $custom_headers = $c->route_param('custom_headers') // { };
+    $custom_headers->{message} = $conf->{message_header};
+
+    my $h = $c->res->headers;
+    map { $h->header($custom_headers->{$_} => $onward{$_}) }
+      grep { defined $onward{$_} } keys %$custom_headers;
+
+    return $c;
   });
 
   $app->validator->add_check(inet_address => sub {
@@ -210,11 +139,11 @@ L<Mojolicious> Web framework for REST-like APIs.
 
 L<Mojolicious::Plugin::MoreHelpers> implements the following helpers.
 
-=head2 route_params
+=head2 route_param
 
-  my $params = $c->route_params(@names);
+  my $value = $c->route_param('foo_bar');
 
-Recursive collect current route params and his parents.
+Recursive collect current route param and his parents.
 
 =head2 validation_json
 
@@ -222,77 +151,17 @@ Recursive collect current route params and his parents.
 
 Merge flat request JSON object with validation.
 
-=head2 headers_response
+=head2 justify_status
 
-  my $h = $c->headers_response(%headers);
+  $c->response_error($strict, $message);
 
-Set multiple reponse headers in one time.
+Dispatch with status and set properly error code.
 
-=head2 reply_json->success
+=head2 custom_headers
 
-  $c->reply_json->success($data, %headers);
+  my $h = $c->custom_headers(%onward);
 
-Render the success JSON object with status code, depend on POST or GET request.
-
-=head2 reply_json->bad_request
-
-  $c->reply_json->bad_request(%headers);
-
-Render empty JSON object with 400 Bad Request HTTP status.
-
-=head2 reply_json->unquthorized
-
-  $c->reply_json->unauthorized(%headers);
-
-Render empty JSON object with 401 HTTP status.
-
-=head2 reply_json->forbidden
-
-  $c->reply_json->forbidden(%headers);
-
-Render empty JSON object with 403 Forbidden HTTP status.
-
-=head2 reply_json->not_found
-
-  $c->reply_json->not_found(%headers);
-
-Render empty JSON object with 404 Not Found HTTP status.
-
-=head2 reply_json->not_acceptable
-
-  $c->reply-_json>not_acceptable(%headers);
-
-Render empty JSON object with 406 HTTP status.
-
-=head2 reply_json->unprocessable
-
-  $c->reply_json->unprocessable(%headers);
-
-Render empty JSON object with 422 HTTP status.
-
-=head2 reply_json->locked
-
-  $c->reply_json->locked(%headers);
-
-Render empty JSON object with 423 HTTP status.
-
-=head2 reply_json->rate_limit
-
-  $c->reply_json->rate_limit(%headers);
-
-Render empty JSON object with 429 HTTP status.
-
-=head2 reply_json->unavailable
-
-  $c->reply_json->unavailable(%headers);
-
-Render empty JSON object with 503 HTTP status.
-
-=head2 reply_json->dispatch
-
-  $c->reply_json->dispatch($status, %headers);
-
-Dispatch with status and render properly error code.
+Set multiple reponse headers from route config map.
 
 =head1 CHECKS
 
@@ -341,7 +210,7 @@ Dmitry Krutikov E<lt>monstar@cpan.orgE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2020 Dmitry Krutikov.
+Copyright 2021 Dmitry Krutikov.
 
 This library is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
